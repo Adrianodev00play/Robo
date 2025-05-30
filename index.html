@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Controle por rotação</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding-top: 30px; }
+    button { font-size: 20px; padding: 10px 20px; }
+    #status { margin-top: 20px; font-size: 22px; color: green; }
+  </style>
+</head>
+<body>
+  <h1>Gire o celular para tocar músicas</h1>
+  <button onclick="iniciar()">Iniciar</button>
+  <div id="status">Aguardando início...</div>
+
+  <!-- Áudios -->
+  <audio id="esquerda" src="esquerda.mp3"></audio>
+  <audio id="direita" src="direita.mp3"></audio>
+  <audio id="musicaA" src="musicaA.mp3"></audio>
+
+  <script>
+    let tocando = null;
+
+    function pararTodos() {
+      ['esquerda', 'direita', 'musicaA'].forEach(id => {
+        const audio = document.getElementById(id);
+        audio.pause();
+        audio.currentTime = 0;
+      });
+    }
+
+    function tocar(nome) {
+      if (tocando === nome) return;
+      pararTodos();
+      const som = document.getElementById(nome);
+      som.play();
+      tocando = nome;
+      document.getElementById("status").innerText = "Tocando: " + nome;
+    }
+
+    function iniciar() {
+      // Desbloquear áudio com interação
+      ['esquerda', 'direita', 'musicaA'].forEach(id => {
+        const audio = document.getElementById(id);
+        audio.play().then(() => audio.pause()).catch(() => {});
+      });
+
+      // Ativar sensor de orientação
+      if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
+        DeviceOrientationEvent.requestPermission()
+          .then(response => {
+            if (response === "granted") {
+              ativarSensor();
+            } else {
+              alert("Permissão negada.");
+            }
+          });
+      } else {
+        ativarSensor();
+      }
+
+      document.querySelector('button').style.display = 'none';
+      document.getElementById("status").innerText = "Sensor ativado!";
+    }
+
+    function ativarSensor() {
+      window.addEventListener("deviceorientation", function(event) {
+        let gamma = event.gamma; // Inclinação lateral
+        if (gamma > 30) {
+          tocar("esquerda");
+        } else if (gamma < -30) {
+          tocar("direita");
+        } else {
+          tocar("musicaA");
+        }
+      });
+    }
+  </script>
+</body>
+</html>
