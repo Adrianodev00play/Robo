@@ -2,25 +2,43 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Controle por rotação</title>
+  <title>Música por Movimento</title>
   <style>
-    body { font-family: sans-serif; text-align: center; padding-top: 30px; }
-    button { font-size: 20px; padding: 10px 20px; }
-    #status { margin-top: 20px; font-size: 22px; color: green; }
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 40px;
+      background: #f0f0f0;
+    }
+    h1 {
+      font-size: 28px;
+      margin-bottom: 20px;
+    }
+    button {
+      font-size: 20px;
+      padding: 12px 24px;
+      margin: 20px;
+    }
+    #status {
+      font-size: 22px;
+      margin-top: 30px;
+      color: #006400;
+    }
   </style>
 </head>
 <body>
-  <h1>Gire o celular para tocar músicas</h1>
+  <h1>Gire ou sacuda o celular para tocar músicas</h1>
   <button onclick="iniciar()">Iniciar</button>
   <div id="status">Aguardando início...</div>
 
-  <!-- Áudios -->
+  <!-- Arquivos de áudio -->
   <audio id="esquerda" src="esquerda.mp3"></audio>
   <audio id="direita" src="direita.mp3"></audio>
   <audio id="musicaA" src="musicaA.mp3"></audio>
 
   <script>
     let tocando = null;
+    let ultimaLeitura = Date.now();
 
     function pararTodos() {
       ['esquerda', 'direita', 'musicaA'].forEach(id => {
@@ -28,51 +46,66 @@
         audio.pause();
         audio.currentTime = 0;
       });
+      tocando = null;
+      document.getElementById("status").innerText = "Todos os sons parados.";
     }
 
-    function tocar(nome) {
-      if (tocando === nome) return;
+    function tocar(id) {
+      if (tocando === id) return;
       pararTodos();
-      const som = document.getElementById(nome);
+      const som = document.getElementById(id);
       som.play();
-      tocando = nome;
-      document.getElementById("status").innerText = "Tocando: " + nome;
+      tocando = id;
+      document.getElementById("status").innerText = "Tocando: " + id;
     }
 
     function iniciar() {
-      // Desbloquear áudio com interação
+      // Desbloqueia o áudio com interação
       ['esquerda', 'direita', 'musicaA'].forEach(id => {
         const audio = document.getElementById(id);
         audio.play().then(() => audio.pause()).catch(() => {});
       });
 
-      // Ativar sensor de orientação
+      // Solicita permissão no iOS (não interfere no Android)
       if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
         DeviceOrientationEvent.requestPermission()
           .then(response => {
             if (response === "granted") {
-              ativarSensor();
+              ativarSensores();
             } else {
-              alert("Permissão negada.");
+              alert("Permissão para sensores negada.");
             }
           });
       } else {
-        ativarSensor();
+        ativarSensores();
       }
 
       document.querySelector('button').style.display = 'none';
       document.getElementById("status").innerText = "Sensor ativado!";
     }
 
-    function ativarSensor() {
-      window.addEventListener("deviceorientation", function(event) {
-        let gamma = event.gamma; // Inclinação lateral
+    function ativarSensores() {
+      // Detecta inclinação (gamma)
+      window.addEventListener("deviceorientation", (event) => {
+        const gamma = event.gamma;
         if (gamma > 30) {
           tocar("esquerda");
         } else if (gamma < -30) {
           tocar("direita");
         } else {
           tocar("musicaA");
+        }
+      });
+
+      // Detecta movimento brusco (sacudir)
+      window.addEventListener("devicemotion", (event) => {
+        const acc = event.accelerationIncludingGravity;
+        const aceleracao = Math.sqrt(acc.x ** 2 + acc.y ** 2 + acc.z ** 2);
+
+        // Se balançar rápido, parar sons
+        if (aceleracao > 25 && Date.now() - ultimaLeitura > 1000) {
+          pararTodos();
+          ultimaLeitura = Date.now();
         }
       });
     }
